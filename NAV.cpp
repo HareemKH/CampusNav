@@ -4,7 +4,7 @@
 #include <unordered_map>
 #include <limits>
 #include <algorithm>
-
+ // THIS IS NOT THE REAL CODE BUT A SAMPLE LIKE IT :) 
 using namespace std;
 
 struct Location {
