@@ -1,119 +1,146 @@
 #include <iostream>
 #include <vector>
 #include <queue>
+#include <climits>
 #include <unordered_map>
-#include <limits>
-#include <algorithm>
- // THIS IS NOT THE REAL CODE BUT A SAMPLE LIKE IT :) 
+#include <list>
+#include <stack>
+
 using namespace std;
 
-struct Location {
+struct Edge {
+    string destination;
+    int weight;
+};
+
+struct Node {
     string name;
-    int id;
+    int distance;
+
+    bool operator>(const Node &other) const {
+        return distance > other.distance;
+    }
 };
 
-vector<Location> locations = {
-    {"CSIT", 0}, {"Girls Common Room", 1}, {"Auditorium", 2},
-    {"Admin Block", 3}, {"Bank", 4}, {"Medical Dept", 5},
-    {"Library", 6}, {"Engineering Dept", 7}, {"Cafeteria", 8},
-    {"Sports Complex", 9}, {"Main Gate", 10}
-};
+void dijkstra(unordered_map<string, list<Edge>> &graph, const string &start, const string &destination) {
 
-unordered_map<int, vector<pair<int, double>>> adjList = {
-    {0, {{1, 2.5}, {2, 3.5}, {3, 4.0}}},
-    {1, {{0, 2.5}, {3, 2.0}, {4, 5.5}}},
-    {2, {{0, 3.5}, {3, 1.0}, {5, 6.0}}},
-    {3, {{0, 4.0}, {1, 2.0}, {2, 1.0}, {5, 3.5}, {6, 4.5}}},
-    {4, {{1, 5.5}, {5, 2.0}, {7, 3.5}}},
-    {5, {{2, 6.0}, {3, 3.5}, {4, 2.0}, {8, 2.5}}},
-    {6, {{3, 4.5}, {9, 2.5}}},
-    {7, {{4, 3.5}, {10, 2.0}}},
-    {8, {{5, 2.5}, {9, 4.0}}},
-    {9, {{6, 2.5}, {8, 4.0}, {10, 5.0}}},
-    {10, {{7, 2.0}, {9, 5.0}}}
-};
+    priority_queue<Node, vector<Node>, greater<Node>> pq;
 
-vector<double> dijkstra(int start, int numLocations, vector<int>& previous ) {
-    vector<double> distances(numLocations, numeric_limits<double>::infinity());
-    distances[start] = 0.0;
-    previous[start] = -1;
+    unordered_map<string, int> distances;
 
-    priority_queue<pair<double, int>, vector<pair<double, int>>, greater<>> minHeap;
-    minHeap.push({0.0, start});
+    unordered_map<string, string> previous;
 
-    while (!minHeap.empty()) {
-        auto top = minHeap.top();
-        double currentDistance = top.first;
-        int currentLocation = top.second;
-        minHeap.pop();
+    // Initialize distances to "infinity" and set the start node to 0 distance
+    for (const auto &node : graph) {
+        distances[node.first] = INT_MAX;
+    }
+    distances[start] = 0;
 
-        for (const auto& neighborWeightPair : adjList[currentLocation]) {
-            int neighbor = neighborWeightPair.first;
-            double weight = neighborWeightPair.second;
+    pq.push({start, 0});
 
-            double newDist = currentDistance + weight;
-            if (newDist < distances[neighbor]) {
-                distances[neighbor] = newDist;
-                previous[neighbor] = currentLocation;
-                minHeap.push({newDist, neighbor});
+    // Dijkstra's algorithm
+    while (!pq.empty()) {
+        string current = pq.top().name;
+        int currentDistance = pq.top().distance;
+        pq.pop();
+
+        if (currentDistance > distances[current]) continue;
+
+        // Explore neighbors of the current node
+        for (const auto &neighbor : graph[current]) {
+            string adjNode = neighbor.destination;
+            int weight = neighbor.weight;
+            int newDist = currentDistance + weight;
+
+            if (newDist < distances[adjNode]) {
+                distances[adjNode] = newDist;
+                previous[adjNode] = current;
+                pq.push({adjNode, newDist});
             }
         }
     }
-    return distances;
-}
 
-void printPath(int destination, const vector<int>& previous) {
-    if (previous[destination] == -1) {
-        cout << "No path found.\n";
+    // Check if destination is reachable
+    if (distances[destination] == INT_MAX) {
+        cout << "No valid path found from " << start << " to " << destination << "." << endl;
         return;
     }
 
-    vector<int> path;
-    for (int at = destination; at != -1; at = previous[at]) {
-        path.push_back(at);
-    }
-    reverse(path.begin(), path.end());
+    cout << "Shortest distance from " << start << " to " << destination << " is: " << distances[destination] << endl;
 
-    for (int i = 0; i < path.size(); ++i) {
-        cout << locations[path[i]].name;
-        if (i != path.size() - 1) cout << " -> ";
+    // Reconstruct the shortest path
+    stack<string> pathStack;
+    string node = destination;
+
+    while (node != start) {
+        pathStack.push(node);
+        node = previous[node];
+    }
+    pathStack.push(start);
+
+    // Print the path in correct order
+    cout << "Shortest path: ";
+    while (!pathStack.empty()) {
+        cout << pathStack.top();
+        pathStack.pop();
+        if (!pathStack.empty()) cout << " -> ";
     }
     cout << endl;
 }
 
 int main() {
-    int numLocations = locations.size();
-    vector<int> previous(numLocations);
+    unordered_map<string,  list<Edge>> graph;
 
-    int start, end;
-    cout << "Enter the starting location ID (0 for CSIT): ";
-    cin >> start;
-    cout << "Enter the destination location ID (e.g., 5 for Medical Dept): ";
-    cin >> end;
+    // Define locations and distances based on map layout
+    graph["CSIT"].push_back({"Courtyard", 1});
+    graph["Courtyard"].push_back({"Circulation Library", 2});
+    graph["Circulation Library"].push_back({"Masjid", 1});
+    graph["CSIT"].push_back({"Math Building", 1});
+    graph["Math Building"].push_back({"Admin Block", 2});
+    graph["Admin Block"].push_back({"Masjid", 3});
+    graph["Admin Block"].push_back({"Humanities", 1});
 
-    if (start < 0 || start >= numLocations || end < 0 || end >= numLocations) {
-        cout << "Invalid location ID entered.\n";
-        return 1;
+    // Adding more connections for accurate campus layout
+    graph["CSIT"].push_back({"Auditorium", 2});
+    graph["Auditorium"].push_back({"Medical Dept", 3});
+    graph["Medical Dept"].push_back({"Masjid", 1});
+
+    // Ensure bidirectional paths
+    for (auto &node : graph) {
+        for (auto &edge : node.second) {
+            graph[edge.destination].push_back({node.first, edge.weight});
+        }
     }
 
-    vector<double> distances = dijkstra(start, numLocations, previous);
-    cout << "\nShortest path from " << locations[start].name << " to " << locations[end].name << ":\n";
-    printPath(end, previous);
-    if (distances[end] != numeric_limits<double>::infinity()) {
-        cout << "Distance: " << distances[end] << " units\n";
-    } else {
-        cout << "Distance: No path available.\n";
+    // Take user input for destination selection
+    cout << "Enter the destination from the following list:\n";
+    cout << "1. Math Building\n";
+    cout << "2. Courtyard\n";
+    cout << "3. Circulation Library\n";
+    cout << "4. Admin Block\n";
+    cout << "5. Auditorium\n";
+    cout << "6. Medical Dept\n";
+    cout << "7. Masjid\n";
+    
+    int option;
+    cout << "Enter your destination number: ";
+    cin >> option;
+
+    string destination;
+    switch (option) {
+        case 1: destination = "Math Building"; break;
+        case 2: destination = "Courtyard"; break;
+        case 3: destination = "Circulation Library"; break;
+        case 4: destination = "Admin Block"; break;
+        case 5: destination = "Auditorium"; break;
+        case 6: destination = "Medical Dept"; break;
+        case 7: destination = "Masjid"; break;
+        default: 
+            cout << "Invalid option selected. Exiting.";
+            return 0;
     }
 
-    vector<int> returnPrevious(numLocations);
-    distances = dijkstra(end, numLocations, returnPrevious);
-    cout << "\nReturn path from " << locations[end].name << " back to " << locations[start].name << ":\n";
-    printPath(start, returnPrevious);
-    if (distances[start] != numeric_limits<double>::infinity()) {
-        cout << "Distance: " << distances[start] << " units\n";
-    } else {
-        cout << "Distance: No path available.\n";
-    }
+    dijkstra(graph, "CSIT", destination);
 
     return 0;
-}  
+}
